@@ -16,7 +16,14 @@ public struct Drink: Identifiable, Equatable, Sendable {
     ]
 }
 
+public struct BrewSession: Codable, Equatable {
+    public let started: TimeInterval
+    public let minutes: Int
+    public let drink: String
+}
+
 public struct Progress: Codable, Equatable {
+    public var session: BrewSession?
     public var coins = 0
     public var minutes = 0
     public var cups = 0
@@ -27,12 +34,12 @@ public struct Progress: Codable, Equatable {
     public init() {}
 }
 
-/// A session is intentionally ephemeral: relaunching never resumes or rewards it.
+/// Persisted start dates allow a brew to finish while iOS suspends the app.
 public struct Cafe {
     public private(set) var progress: Progress
-    public private(set) var started: TimeInterval?
-    public private(set) var sessionMinutes = 0
-    public private(set) var sessionDrink = "matcha"
+    public var started: TimeInterval? { progress.session?.started }
+    public var sessionMinutes: Int { progress.session?.minutes ?? progress.duration }
+    public var sessionDrink: String { progress.session?.drink ?? progress.selected }
     public init(progress: Progress = Progress()) { self.progress = progress }
     public var running: Bool { started != nil }
     public mutating func configure(minutes: Int) { guard !running else { return }; progress.duration = min(120, max(1, minutes)) }
@@ -45,7 +52,7 @@ public struct Cafe {
     }
     public mutating func start(at time: TimeInterval) {
         guard !running else { return }
-        started = time; sessionMinutes = progress.duration; sessionDrink = progress.selected
+        progress.session = BrewSession(started: time, minutes: progress.duration, drink: progress.selected)
     }
     public func fraction(at time: TimeInterval) -> Double {
         guard let started else { return 0 }
@@ -55,13 +62,13 @@ public struct Cafe {
         guard let started else { return progress.duration * 60 }
         return max(0, Int(ceil(Double(sessionMinutes * 60) - (time - started))))
     }
-    /// Invoke only while the scene is active. Cancellation must take precedence on deactivation.
+    /// Reconcile on launch/foreground; no background execution is required.
     @discardableResult public mutating func tick(at time: TimeInterval) -> Bool {
         guard running, fraction(at: time) >= 1 else { return false }
         progress.coins += sessionMinutes; progress.minutes += sessionMinutes; progress.cups += 1
         progress.brewed[sessionDrink, default: 0] += 1
-        started = nil
+        progress.session = nil
         return true
     }
-    public mutating func cancel() { started = nil }
+    public mutating func cancel() { progress.session = nil }
 }

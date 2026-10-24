@@ -19,6 +19,12 @@ import Foundation
         cafe.start(at: 0); cafe.configure(minutes: 120)
         precondition(cafe.sessionMinutes == 1)
         precondition(cafe.remaining(at: 0) == 60)
-        print("PASS: completion, exactly-once rewards, cancellation, filling, unlocks, insufficient funds, persistence, session settings, duration bounds")
+        var sleeping = Cafe(); sleeping.configure(minutes: 2); sleeping.start(at: 1000)
+        var resumed = Cafe(progress: try JSONDecoder().decode(Progress.self, from: JSONEncoder().encode(sleeping.progress)))
+        precondition(resumed.running && resumed.remaining(at: 1060) == 60)
+        precondition(resumed.tick(at: 5000))
+        var finished = Cafe(progress: try JSONDecoder().decode(Progress.self, from: JSONEncoder().encode(resumed.progress)))
+        precondition(!finished.tick(at: 6000) && finished.progress.coins == 2 && finished.progress.cups == 1)
+        print("PASS: background/relaunch restoration, persisted exactly-once rewards, completion, exactly-once rewards, cancellation, filling, unlocks, insufficient funds, persistence, session settings, duration bounds")
     }
 }

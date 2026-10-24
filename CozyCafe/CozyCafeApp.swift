@@ -1,6 +1,5 @@
 import SwiftUI
 import Combine
-import UIKit
 
 @MainActor final class CafeStore: ObservableObject {
     @Published private(set) var cafe: Cafe
@@ -10,20 +9,21 @@ import UIKit
         self.defaults = defaults
         let saved = defaults.data(forKey: "cozy.progress.v1").flatMap { try? JSONDecoder().decode(Progress.self, from: $0) }
         cafe = Cafe(progress: saved ?? Progress())
+        tick()
     }
     func save() { if let data = try? JSONEncoder().encode(cafe.progress) { defaults.set(data, forKey: "cozy.progress.v1") } }
     func configure(_ minutes: Int) { cafe.configure(minutes: minutes); save() }
     func select(_ drink: Drink) { cafe.select(drink); save() }
     func unlock(_ drink: Drink) { if cafe.unlock(drink) { save(); message = "\(drink.name) is now on your menu." } }
-    func start() { cafe.start(at: ProcessInfo.processInfo.systemUptime); UIApplication.shared.isIdleTimerDisabled = true; message = nil }
+    func start() { cafe.start(at: Date().timeIntervalSince1970); save(); message = nil }
     func cancel() {
         guard cafe.running else { return }
-        cafe.cancel(); UIApplication.shared.isIdleTimerDisabled = false
+        cafe.cancel(); save()
         message = "Your brew was set aside. No coins earned — start fresh whenever you’re ready."
     }
     func tick() {
-        if cafe.tick(at: ProcessInfo.processInfo.systemUptime) {
-            save(); UIApplication.shared.isIdleTimerDisabled = false
+        if cafe.tick(at: Date().timeIntervalSince1970) {
+            save()
             message = "A lovely little pause. +\(cafe.sessionMinutes) coins earned."
         }
     }
@@ -43,8 +43,7 @@ extension Color {
     var body: some Scene {
         WindowGroup {
             CafeTabs().environmentObject(store).tint(.sage).preferredColorScheme(.light)
-                .onChange(of: phase) { value in if value != .active { store.cancel() } }
-                .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in store.cancel() }
+                .onChange(of: phase) { value in if value == .active { store.tick() } else { store.save() } }
         }
     }
 }
@@ -105,7 +104,7 @@ struct FocusView: View {
     @EnvironmentObject var store: CafeStore
     @Environment(\.scenePhase) private var phase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var now = ProcessInfo.processInfo.systemUptime
+    @State private var now = Date().timeIntervalSince1970
     private let timer = Timer.publish(every: 0.25, on: .main, in: .common).autoconnect()
     private var drink: Drink { Drink.menu.first { $0.id == store.cafe.progress.selected } ?? Drink.menu[0] }
     var body: some View {
@@ -113,7 +112,7 @@ struct FocusView: View {
             VStack(spacing: 24) {
                 HStack { Text("喫茶 · COZY CAFÉ").tracking(2).font(.caption); Spacer(); Label("\(store.cafe.progress.coins)", systemImage: "circle") }.foregroundStyle(Color.sage)
                 CafeHeading(eyebrow: "A slower kind of day", title: "Make room for focus.")
-                Text(store.cafe.running ? "Stay here. Let your drink slowly fill." : "Choose a cup. Settle in. Do one thing.")
+                Text(store.cafe.running ? "Let your drink slowly fill. Rest your screen if you like." : "Choose a cup. Settle in. Do one thing.")
                     .font(.subheadline).foregroundStyle(Color.sage).frame(maxWidth: .infinity, alignment: .leading)
                 DrinkArt(drink: drink, fill: store.cafe.running ? store.cafe.fraction(at: now) : 1)
                     .frame(width: 220, height: 210)
@@ -129,15 +128,15 @@ struct FocusView: View {
                         ForEach(Drink.menu.filter { store.cafe.progress.unlocked.contains($0.id) }) { Text($0.name).tag($0.id) }
                     }.pickerStyle(.menu)
                 }
-                Button { if store.cafe.running { store.cancel() } else { now = ProcessInfo.processInfo.systemUptime; store.start() } } label: {
+                Button { if store.cafe.running { store.cancel() } else { now = Date().timeIntervalSince1970; store.start() } } label: {
                     Text(store.cafe.running ? "Set aside this brew" : "Begin focus").frame(maxWidth: .infinity).padding(18)
                 }.buttonStyle(.plain).background(Color.sage, in: Capsule()).foregroundStyle(Color.cream)
-                Text("1 coin per minute, awarded after a full brew.\nLeaving the app or locking your phone cancels your session.")
+                Text("1 coin per minute, awarded after a full brew.\nYour brew continues while your phone sleeps or you leave the app.")
                     .font(.caption).foregroundStyle(Color.sage).multilineTextAlignment(.center)
             }.padding(26)
         }.background(Color.cream)
         .onReceive(timer) { _ in
-            now = ProcessInfo.processInfo.systemUptime
+            now = Date().timeIntervalSince1970
             if phase == .active { store.tick() }
         }
     }

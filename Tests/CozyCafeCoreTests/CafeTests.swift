@@ -23,4 +23,25 @@ final class CafeTests: XCTestCase {
         cafe.start(at: 0); cafe.configure(minutes: 120); XCTAssertEqual(cafe.sessionMinutes, 1)
         cafe.select(Drink.menu[1]); XCTAssertEqual(cafe.progress.selected, "matcha")
     }
+    func testSuspendedBrewRestoresAndRewardsOnce() throws {
+        var cafe = Cafe(); cafe.configure(minutes: 2); cafe.start(at: 1000)
+        let data = try JSONEncoder().encode(cafe.progress)
+        var reopened = Cafe(progress: try JSONDecoder().decode(Progress.self, from: data))
+        XCTAssertTrue(reopened.running)
+        XCTAssertEqual(reopened.remaining(at: 1060), 60)
+        XCTAssertTrue(reopened.tick(at: 5000))
+        let finished = try JSONEncoder().encode(reopened.progress)
+        var relaunched = Cafe(progress: try JSONDecoder().decode(Progress.self, from: finished))
+        XCTAssertFalse(relaunched.tick(at: 6000))
+        XCTAssertEqual(relaunched.progress.coins, 2)
+        XCTAssertEqual(relaunched.progress.cups, 1)
+    }
+    func testLegacyProgressLoadsWithoutSession() throws {
+        let data = try JSONEncoder().encode(Progress())
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        object.removeValue(forKey: "session")
+        let restored = try JSONDecoder().decode(Progress.self, from: JSONSerialization.data(withJSONObject: object))
+        XCTAssertNil(restored.session)
+        XCTAssertEqual(restored.unlocked, ["matcha"])
+    }
 }

@@ -11,10 +11,10 @@ Requires Xcode 15 or later and iOS 17 or later. Open `CozyCafe.xcodeproj`, selec
 - **Focus:** select an unlocked drink, set 1–120 minutes, and start a brew. The cup fills as time passes. Reduced Motion is respected.
 - **Collection:** see all six drinks, owned drinks, per-drink brew counts, total completed minutes, and cups.
 - **Shop:** unlock drinks with earned coins; purchases deduct the displayed cost once.
-- One coin per configured minute, paid only when the entire session completes while the app is active. A 25-minute completed brew earns 25 coins.
-- Inactive/background transitions (including phone lock, app switcher, and interruptions) immediately cancel the current brew with **zero rewards**, even if some full minutes elapsed. Returning never resumes it. Switching the app’s tabs is allowed.
-- Progress, selected drink, timer duration, unlocks, and counts persist locally in UserDefaults. Running sessions are never persisted. The screen stays awake during a brew, and normal auto-lock returns after completion or cancellation.
-- Timer calculations use monotonic system uptime rather than the wall clock.
+- One coin per configured minute, paid only when the entire session completes. A 25-minute completed brew earns 25 coins.
+- Locking the phone, automatic sleep, app switching, and interruptions leave the brew running. No apps are blocked. Only manually setting a brew aside cancels it without rewards.
+- Progress, selected drink, timer duration, unlocks, and counts persist locally in UserDefaults. Active brews are persisted together with progress. Normal auto-lock is allowed throughout a brew.
+- Timer calculations use a persisted start date. On launch or foreground, elapsed time is reconciled and a completed brew is rewarded exactly once. No continuous background execution is needed; rewards appear when the app next runs. Manually changing the system date can affect elapsed time.
 
 ## Architecture
 
@@ -48,11 +48,11 @@ GitHub Actions passed the XCTest suite and an unsigned iPhone Simulator build on
 ### Manual iPhone QA
 
 1. Complete a one-minute brew: verify gradual fill, one coin, and one additional cup; wait longer and verify no duplicate reward.
-2. Start again; open Control Center, lock the phone, or switch apps. Return and verify cancellation and unchanged coins/counts.
-3. Cancel manually and verify no reward. Relaunch mid-session and verify no resumed session or reward.
+2. Start again; open Control Center, lock the phone, or switch apps. Return and verify elapsed time advanced, or that a finished brew earned its coins exactly once.
+3. Cancel manually and verify no reward. Relaunch mid-session and verify it resumes with the correct remaining time. Relaunch after the deadline and verify exactly one reward.
 4. Earn 30 coins, unlock Hojicha, select it, and relaunch; verify balance and selection persist. Verify unaffordable drinks cannot be purchased.
 5. Check all tabs at larger text sizes, with VoiceOver, and with Reduced Motion enabled.
 
 ## Shipping notes
 
-This is a source-complete starter app. The unsigned iOS Simulator build has passed in GitHub Actions; interactive simulator and physical device QA remain required. An App Store icon, signing, distribution configuration, and App Store metadata are not included.
+This is a source-complete starter app. The initial unsigned iOS Simulator build passed in GitHub Actions; interactive simulator and physical device QA remain required. An App Store icon, signing, distribution configuration, and App Store metadata are not included.
