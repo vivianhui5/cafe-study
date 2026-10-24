@@ -41,6 +41,10 @@ GitHub Actions runs the XCTest suite and an unsigned iPhone Simulator build on p
 - Xcode project plist validation: passed.
 - iOS build / simulator / XCTest: unavailable because this Mac has Command Line Tools only, without full Xcode or XCTest. No successful iOS build is claimed.
 
+### GitHub verification
+
+GitHub Actions passed the XCTest suite and an unsigned iPhone Simulator build on October 24, 2026. [View the successful run](https://github.com/vivianhui5/cafe-study/actions/runs/40123824909). This confirms compilation; interactive simulator and physical device QA remain to be completed.
+
 ### Manual iPhone QA
 
 1. Complete a one-minute brew: verify gradual fill, one coin, and one additional cup; wait longer and verify no duplicate reward.
@@ -51,4 +55,4 @@ GitHub Actions runs the XCTest suite and an unsigned iPhone Simulator build on p
 
 ## Shipping notes
 
-This is a source-complete starter app. Full iOS compilation and device QA remain required. An App Store icon, signing, distribution configuration, and App Store metadata are not included.
+This is a source-complete starter app. The unsigned iOS Simulator build has passed in GitHub Actions; interactive simulator and physical device QA remain required. An App Store icon, signing, distribution configuration, and App Store metadata are not included.
