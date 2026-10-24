@@ -1,0 +1,24 @@
+import Foundation
+@main struct VerifyCore {
+    static func main() throws {
+        var cafe = Cafe()
+        cafe.configure(minutes: 2); cafe.start(at: 10)
+        precondition(!cafe.tick(at: 129))
+        precondition(cafe.fraction(at: 70) == 0.5)
+        precondition(cafe.tick(at: 130) && !cafe.tick(at: 131))
+        precondition(cafe.progress.coins == 2 && cafe.progress.cups == 1)
+        cafe.start(at: 200); cafe.cancel()
+        precondition(!cafe.tick(at: 10000) && cafe.progress.coins == 2)
+        cafe.configure(minutes: 30); cafe.start(at: 0); cafe.tick(at: 1800)
+        precondition(cafe.unlock(Drink.menu[1]))
+        precondition(!cafe.unlock(Drink.menu[1]) && !cafe.unlock(Drink.menu[2]))
+        cafe.select(Drink.menu[1])
+        let restored = try JSONDecoder().decode(Progress.self, from: JSONEncoder().encode(cafe.progress))
+        precondition(restored == cafe.progress && !Cafe(progress: restored).running)
+        cafe.configure(minutes: 0); precondition(cafe.progress.duration == 1)
+        cafe.start(at: 0); cafe.configure(minutes: 120)
+        precondition(cafe.sessionMinutes == 1)
+        precondition(cafe.remaining(at: 0) == 60)
+        print("PASS: completion, exactly-once rewards, cancellation, filling, unlocks, insufficient funds, persistence, session settings, duration bounds")
+    }
+}

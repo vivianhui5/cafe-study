@@ -1,0 +1,11 @@
+name: iOS verification
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test timer and economy
+        run: swift test
+      - name: Build iPhone Simulator app
+        run: xcodebuild -project CozyCafe.xcodeproj -scheme CozyCafe -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
